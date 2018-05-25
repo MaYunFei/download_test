@@ -9,12 +9,15 @@ import com.mayunfei.downloadmanager.db.greendao.DaoSession;
 import java.util.ArrayList;
 import java.util.List;
 
+import okhttp3.OkHttpClient;
+
 import static com.mayunfei.downloadmanager.db.DownState.STATUS_WAITING;
 
 public class TestDownTask extends DownloadTask {
 
-    public TestDownTask(BundleBean bundleBean, DaoSession daoSession, TaskStatusListener downloadTaskStatusListener) {
-        super(bundleBean, daoSession, downloadTaskStatusListener);
+
+    public TestDownTask(OkHttpClient okHttpClient, BundleBean bundleBean, DaoSession daoSession, TaskStatusListener downloadTaskStatusListener) {
+        super(okHttpClient, bundleBean, daoSession, downloadTaskStatusListener);
         event.setStatus(STATUS_WAITING);
     }
 

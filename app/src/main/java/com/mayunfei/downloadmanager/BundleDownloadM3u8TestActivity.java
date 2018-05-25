@@ -65,13 +65,15 @@ public class BundleDownloadM3u8TestActivity extends AppCompatActivity {
     private StatusChangeListener downloadListener = new StatusChangeListener() {
         private long startTime = System.currentTimeMillis();
 
+        //再当前
         @Override
         protected void statusChange(DownEvent downEvent) {
             Log.i(TAG, downEvent.toString());
 
-
+            //会调到
             for (int i = 0; i < bundleBeanList.size(); i++) {
                 if (bundleBeanList.get(i).getKey().equals(downEvent.getKey())) {
+
                     eventList.get(i).refresh(downEvent);
 //                    final int finalI = i;
                     handler.removeMessages(UPDATE_ADPATER);
@@ -218,9 +220,6 @@ public class BundleDownloadM3u8TestActivity extends AppCompatActivity {
         mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         mRecyclerView.setAdapter(adapter);
         test();
-        for (int i = 0; i < bundleBeanList.size(); i++) {
-            eventList.add(i, new DownEvent(bundleBeanList.get(i).getKey()));
-        }
 
         mBtnPauseAll.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -240,13 +239,14 @@ public class BundleDownloadM3u8TestActivity extends AppCompatActivity {
     }
 
     public void test() {
-        for (int i = 0; i < 30; i++) {
+        for (int i = 0; i < 10; i++) {
             BundleBean bundleBean = new BundleBean("1234" + i, DownType.TYPE_M3U8);
             keys.add("1234"+i);
             bundleBean.setPath(getPrivateAlbumStorageDir(this).getAbsolutePath() + File.separator + i);
             bundleBean.setUrl(String.format("http://172.16.200.46:8081/downloadApk/CMA/test/13/apk/%s_test.apk",i));
             downloadManager.addBundle(bundleBean, downloadListener);
             bundleBeanList.add(bundleBean);
+            eventList.add(i, new DownEvent(bundleBeanList.get(i).getKey()));
         }
 
 

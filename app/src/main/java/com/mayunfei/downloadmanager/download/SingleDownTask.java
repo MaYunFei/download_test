@@ -8,12 +8,14 @@ import com.mayunfei.downloadmanager.download.http.ItemTask;
 
 import java.util.List;
 
+import okhttp3.OkHttpClient;
+
 public class SingleDownTask extends DownloadTask implements TaskStatusListener<ItemBean> {
 
     ItemTask itemTask;
 
-    public SingleDownTask(BundleBean bundleBean, DaoSession daoSession, TaskStatusListener downloadTaskStatusListener) {
-        super(bundleBean, daoSession, downloadTaskStatusListener);
+    public SingleDownTask(OkHttpClient okHttpClient, BundleBean bundleBean, DaoSession daoSession, TaskStatusListener downloadTaskStatusListener) {
+        super(okHttpClient, bundleBean, daoSession, downloadTaskStatusListener);
     }
 
 
@@ -29,7 +31,7 @@ public class SingleDownTask extends DownloadTask implements TaskStatusListener<I
             itemBean = itemBeans.get(0);
         }
 
-        itemTask = new ItemTask(itemBean,this);
+        itemTask = new ItemTask(getHttpClient(),itemBean,this);
         itemTask.run();
 
     }

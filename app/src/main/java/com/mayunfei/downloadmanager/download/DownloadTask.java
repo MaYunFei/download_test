@@ -12,28 +12,40 @@ import java.util.Objects;
 import java.util.Observable;
 import java.util.Observer;
 
+import okhttp3.OkHttpClient;
+
 import static com.mayunfei.downloadmanager.db.DownState.STATUS_DOWNLOADING;
 import static com.mayunfei.downloadmanager.db.DownState.STATUS_ERROR;
 import static com.mayunfei.downloadmanager.db.DownState.STATUS_FINISH;
 import static com.mayunfei.downloadmanager.db.DownState.STATUS_PAUSE;
+import static com.mayunfei.downloadmanager.db.DownState.STATUS_WAITING;
 
 public class DownloadTask extends Observable implements Runnable {
     protected final BundleBeanDao bundleBeanDao;
     protected final ItemBeanDao itemBeanDao;
+    protected final DaoSession daoSession;
     protected BundleBean bundleBean;
     protected String key;
     protected DownEvent event;
     protected TaskStatusListener<DownloadTask> downloadStatusListener;
+    private OkHttpClient httpClient;
 
-    private boolean isPause = false;
+    private volatile boolean isPause = false;
 
-    public DownloadTask(BundleBean bundleBean,DaoSession daoSession, TaskStatusListener downloadTaskStatusListener) {
+    public DownloadTask(OkHttpClient okHttpClient,BundleBean bundleBean,DaoSession daoSession, TaskStatusListener downloadTaskStatusListener) {
         this.bundleBean = bundleBean;
         this.downloadStatusListener = downloadTaskStatusListener;
+        this.daoSession = daoSession;
         bundleBeanDao = daoSession.getBundleBeanDao();
         itemBeanDao = daoSession.getItemBeanDao();
         key = bundleBean.getKey();
         event = DownEvent.getEvent(bundleBean);
+        this.httpClient = okHttpClient;
+
+    }
+
+    public OkHttpClient getHttpClient() {
+        return httpClient;
     }
 
     public String getKey() {
@@ -83,7 +95,6 @@ public class DownloadTask extends Observable implements Runnable {
     }
 
     protected void doError(Exception e) {
-        L.e("下载报错了 " ,e.getMessage());
         event.setStatus(STATUS_ERROR);
         downloadStatusListener.onError(this,e);
         updateEvent();
@@ -105,4 +116,8 @@ public class DownloadTask extends Observable implements Runnable {
     }
 
 
+    public void waiting() {
+        event.setStatus(STATUS_WAITING);
+        updateEvent();
+    }
 }

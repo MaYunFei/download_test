@@ -1,6 +1,7 @@
 package com.mayunfei.downloadmanager.download;
 
 import com.mayunfei.downloadmanager.db.BundleBean;
+import com.mayunfei.downloadmanager.db.DbUtil;
 import com.mayunfei.downloadmanager.db.ItemBean;
 import com.mayunfei.downloadmanager.db.greendao.DaoSession;
 import com.mayunfei.downloadmanager.download.http.ItemTask;
@@ -12,7 +13,12 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 
+import okhttp3.OkHttpClient;
+
+import static com.mayunfei.downloadmanager.db.DownState.STATUS_DOWNLOADING;
+import static com.mayunfei.downloadmanager.db.DownState.STATUS_ERROR;
 import static com.mayunfei.downloadmanager.db.DownState.STATUS_FINISH;
+import static com.mayunfei.downloadmanager.db.DownState.STATUS_PAUSE;
 
 public class M3u8DownTask extends DownloadTask implements TaskStatusListener<ItemBean> {
     //当前的 任务
@@ -20,10 +26,11 @@ public class M3u8DownTask extends DownloadTask implements TaskStatusListener<Ite
     private Queue<ItemBean> itemBeanQueue;
     private Exception exception;
 
-    public M3u8DownTask(BundleBean bundleBean, DaoSession daoSession, TaskStatusListener downloadTaskStatusListener) {
-        super(bundleBean, daoSession, downloadTaskStatusListener);
+    public M3u8DownTask(OkHttpClient okHttpClient, BundleBean bundleBean, DaoSession daoSession, TaskStatusListener downloadTaskStatusListener) {
+        super(okHttpClient, bundleBean, daoSession, downloadTaskStatusListener);
         itemBeanQueue = new ArrayDeque<>();
     }
+
 
     @Override
     public void run() {
@@ -35,6 +42,7 @@ public class M3u8DownTask extends DownloadTask implements TaskStatusListener<Ite
 
         event.setTotalSize(itemBeans.size());
         event.setCompletedSize(bundleBean.getCompletedSize());
+        itemBeanQueue.clear();
         itemBeanQueue.addAll(itemBeans);
 
 
@@ -46,7 +54,7 @@ public class M3u8DownTask extends DownloadTask implements TaskStatusListener<Ite
                 itemBean = itemBeanQueue.poll();
                 continue;
             }
-            itemTask = new ItemTask(itemBean,this);
+            itemTask = new ItemTask(getHttpClient(),itemBean,this);
             itemTask.run();
             itemBean = itemBeanQueue.poll();
         }
@@ -70,7 +78,7 @@ public class M3u8DownTask extends DownloadTask implements TaskStatusListener<Ite
 
         itemBeanDao.insertInTx(list);
         //https://juejin.im/entry/58e5a83f2f301e00622be9ec
-        itemBeanDao.detachAll();
+//        itemBeanDao.detachAll();
         bundleBean.setTotalSize(list.size());
 
         return list;
@@ -78,14 +86,17 @@ public class M3u8DownTask extends DownloadTask implements TaskStatusListener<Ite
 
     @Override
     public void pause() {
-        super.pause();
         itemBeanQueue.clear();
         if (itemTask!=null)
-        itemTask.pause();
+            itemTask.pause();
+
+
+        super.pause();
     }
 
     @Override
     public void onPause(ItemBean entity) {
+        entity.setStatus(STATUS_PAUSE);
         itemBeanDao.update(entity);
     }
 
@@ -93,19 +104,21 @@ public class M3u8DownTask extends DownloadTask implements TaskStatusListener<Ite
     public void onFinish(ItemBean entity) {
         //如果多线程需要考虑 原子操作
 //         bundleBean.setCompletedSize(bundleBean.getCompletedSize()+1);
-        event.setCompletedSize(event.getCompletedSize()+1);
+        entity.setStatus(STATUS_FINISH);
         itemBeanDao.update(entity);
+        event.setCompletedSize(DbUtil.getFinishItemBean(itemBeanDao,entity.getBundleId()).size());
         doUpdate();
         checkFinish();
     }
 
     private void checkFinish() {
         if (itemBeanQueue.size() == 0){
-            itemBeanDao.detachAll();
             if (event.getCompletedSize()>=event.getTotalSize()) {
                 doFinish();
             }else {
-                doError(exception);
+                if (!isPause()) {
+                    doError(exception);
+                }
             }
         }
     }
@@ -113,6 +126,7 @@ public class M3u8DownTask extends DownloadTask implements TaskStatusListener<Ite
     @Override
     public void onError(ItemBean entity, Exception e) {
         this.exception = e;
+        entity.setStatus(STATUS_ERROR);
         itemBeanDao.update(entity);
         doUpdate();
         itemBeanQueue.clear();
@@ -121,7 +135,9 @@ public class M3u8DownTask extends DownloadTask implements TaskStatusListener<Ite
 
     @Override
     public void onUpdate(ItemBean entity, long speed) {
-        itemBeanDao.update(entity);
+        entity.setStatus(STATUS_DOWNLOADING);
+        daoSession.startAsyncSession().update(entity);
+//        itemBeanDao.update(entity);
         event.setSpeed(speed);
         doUpdate();
     }

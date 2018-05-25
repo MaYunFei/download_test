@@ -65,7 +65,7 @@ public class ItemDownloadTestActivity extends AppCompatActivity {
         mBtnStart.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                itemTask = new ItemTask(itemBean, new TaskStatusListener<ItemBean>() {
+                itemTask = new ItemTask(null,itemBean, new TaskStatusListener<ItemBean>() {
                     @Override
                     public void onPause(ItemBean entity) {
 
